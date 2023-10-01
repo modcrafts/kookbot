@@ -1,9 +1,11 @@
 import { join } from 'path';
 import AutoLoad, {AutoloadPluginOptions} from '@fastify/autoload';
 import { FastifyPluginAsync, FastifyServerOptions } from 'fastify';
+import pino from 'pino'
 import uWS, {HttpResponse} from 'uWebSockets.js';
 import config from "./config";
 import * as zlib from "zlib";
+import {Context} from "cordis";
 
 export interface AppOptions extends FastifyServerOptions, Partial<AutoloadPluginOptions> {
 
@@ -12,16 +14,14 @@ export interface AppOptions extends FastifyServerOptions, Partial<AutoloadPlugin
 const options: AppOptions = {
 }
 
+const logger = pino({ name: "webhook"})
+
 const app: FastifyPluginAsync<AppOptions> = async (
     fastify,
     opts
 ): Promise<void> => {
   // uWS 注册监听路由
-  uWS.App().get('/*', (res, req) => {
-    res.writeStatus('200 OK').writeHeader('IsExample', 'Yes').end('Hello there!');
-  }).post('/kook', async (res, req) => {
-    console.log('aaaaa')
-
+  uWS.App().post('/kook', async (res, req) => {
     const jsonData = await readJson(res);
     const data = jsonData.d;
     // 检查 verify_token 避免恶意请求
@@ -32,13 +32,14 @@ const app: FastifyPluginAsync<AppOptions> = async (
     if (data.channel_type == "WEBHOOK_CHALLENGE") {
       const body = {challenge: data.challenge}
       res.writeHeader("Status", "200 OK").end(JSON.stringify(body));
+      return;
     }
     res.writeHeader("Status", "200 OK");
   }, ).listen(8787, (token) => {
     if (token) {
-      console.log('Listening to port ' + config.kook_port);
+      logger.info('Listening to port ' + config.kook_port);
     } else {
-      console.log('Failed to listen to port ' + config.kook_port);
+      logger.fatal('Failed to listen to port ' + config.kook_port);
     }
   });
 
@@ -77,19 +78,19 @@ function readJson(res: HttpResponse): Promise<any> {
       if (isLast) {
         zlib.inflate(compressedData, (err, result) => {
           if (err) {
-            console.error('解压缩失败:', err);
+            logger.error('解压缩失败:', err);
             reject('解压缩失败');
           } else {
             const decodedData = result.toString('utf8');
-            console.log('解压缩后的数据:', decodedData);
+            logger.info('解压缩后的数据:', decodedData);
 
             let jsonData;
             try {
               jsonData = JSON.parse(decodedData);
-              console.log('解析后的JSON对象:', jsonData);
+              logger.info('解析后的JSON对象:', jsonData);
               resolve(jsonData); // 解析成功，返回解析后的JSON对象
             } catch (err) {
-              console.error('JSON解析失败:', err);
+              logger.error('JSON解析失败:', err);
               reject('JSON解析失败');
             }
           }

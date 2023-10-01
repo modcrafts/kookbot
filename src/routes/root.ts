@@ -6,7 +6,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
   })
 
   fastify.post('/test', (req, _)=>{
-    req.raw
+
   })
 }
 
