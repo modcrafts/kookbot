@@ -8,16 +8,16 @@ export class DataProcesser {
         this.type = req.getHeader("content-encoding")
     }
 
-    async readData(callback: any) {
+    readData(callback: any) {
         this.callback = callback
         let buffer: Buffer
         this.res.onData(async (ab, isLast) => {
             let chunk = Buffer.from(ab)
             if (isLast) {
               if (buffer) {
-                await this.processData(Buffer.concat([buffer, chunk]));
+                this.processData(Buffer.concat([buffer, chunk]));
               } else {
-                await this.processData(chunk);
+                this.processData(chunk);
               }
             } else {
               if (buffer) {
@@ -29,7 +29,7 @@ export class DataProcesser {
           });
     }
 
-    async processData(buffer: Buffer) {
+    processData(buffer: Buffer) {
         try {
             if ( this.type == "" ) {
                     this.callback(JSON.parse(buffer.toString()))

@@ -23,7 +23,7 @@ async function webhook() {
 
 async function handler(res: uWS.HttpResponse, req: uWS.HttpRequest) {
     try {
-        await new DataProcesser(res, req).readData((data: any) => {
+        new DataProcesser(res, req).readData((data: any) => {
             console.log(data)
             res.end()
         })
