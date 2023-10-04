@@ -3,11 +3,10 @@ import AutoLoad, { AutoloadPluginOptions } from "@fastify/autoload";
 import { FastifyPluginAsync, FastifyServerOptions } from "fastify";
 import pino from "pino";
 import uWS, { HttpResponse } from "uWebSockets.js";
-import config from "./config";
 import * as zlib from "zlib";
 import { Context } from "cordis";
-import { Data, IBaseResponse } from "./kook/types/base";
-import { IBaseSystemExtra } from "./kook/types/system";
+//import { Data, IBaseResponse } from "./kook/types/base";
+//import { IBaseSystemExtra } from "./kook/types/system";
 
 export interface AppOptions
   extends FastifyServerOptions,
@@ -21,31 +20,34 @@ const app: FastifyPluginAsync<AppOptions> = async (
   fastify,
   opts,
 ): Promise<void> => {
+  const webhookPort = process.env.KOOK_WEBHOOK_PORT
   // uWS 注册监听路由
   uWS
     .App()
-    .post("/kook", async (res, req) => {
-      const jsonData: IBaseResponse = await readJson(res);
-      const data: Data<IBaseSystemExtra> = jsonData.d;
+    .post("/webhook", async (res, req) => {
+      const payload/*: IBaseResponse*/ = await readJson(res);
+      const data/*: Data<IBaseSystemExtra>*/ = payload.d;
+
       // 检查 verify_token 避免恶意请求
-      if (data.verify_token !== config.verifyToken) {
-        res.writeHeader("Status", "403 FORBIDDEN").end();
+      if ( data.verify_token !== process.env.KOOK_VERIFY_TOKEN ) {
+        res.writeStatus("403 FORBIDDEN").end();
         return;
       }
       // 处理 Kook Challenge
-      if (data.channel_type == "WEBHOOK_CHALLENGE") {
+      if ( data.channel_type == "WEBHOOK_CHALLENGE" ) {
         const body = { challenge: data.challenge };
-        res.writeHeader("Status", "200 OK").end(JSON.stringify(body));
+        res.writeStatus("200 OK").end(JSON.stringify(body));
         return;
       }
 
-      res.writeHeader("Status", "200 OK");
+      res.writeStatus("200 OK").end();
+      return;
     })
     .listen(8787, (token) => {
       if (token) {
-        logger.info("Listening to port " + config.kook_port);
+        logger.info("Listening to port " + webhookPort);
       } else {
-        logger.fatal("Failed to listen to port " + config.kook_port);
+        logger.fatal("Failed to listen to port " + webhookPort);
       }
     });
 
@@ -108,4 +110,15 @@ function readJson(res: HttpResponse): Promise<any> {
       reject("请求中止");
     });
   });
+}
+
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      KOOK_WEBHOOK_PORT: number;
+      KOOK_VERIFY_TOKEN: string;
+      DAEMON_PORT: number;
+      LOGGER: boolean;
+    }
+  }
 }
