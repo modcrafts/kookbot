@@ -31,16 +31,12 @@ export class DataProcesser {
 
     processData(buffer: Buffer) {
         try {
-            if ( this.type == "" ) {
-                    this.callback(JSON.parse(buffer.toString()))
-            } else if (this.type == "deflate") {
-                zlib.inflate(buffer, (err, result) => {
-                    if (err) {
-                        throw "解压缩失败"
-                    }
-                    this.callback(JSON.parse(result.toString()))
-                })
-            }
+            zlib.inflate(buffer, (err, result) => {
+                if (err) {
+                    throw "解压缩失败"
+                }
+                this.callback(JSON.parse(result.toString()))
+            })
         } catch (error) {
             this.res.end(""+error)
         }

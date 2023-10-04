@@ -1,4 +1,5 @@
 import { DataProcesser } from "./dataProcesser";
+import * as Kook from "./types";
 import pino from "pino";
 import uWS from "uWebSockets.js";
 
@@ -23,9 +24,19 @@ async function webhook() {
 
 async function handler(res: uWS.HttpResponse, req: uWS.HttpRequest) {
     try {
-        new DataProcesser(res, req).readData((data: any) => {
-            console.log(data)
+        new DataProcesser(res, req).readData((payload: Kook.PayLoad) => {
+            if (payload.d.verify_token !== process.env.KOOK_VERIFY_TOKEN) {
+                res.writeStatus("401 Unauthorized").end()
+                return
+            }
+            if (payload.d.channel_type == "WEBHOOK_CHALLENGE") {
+                res.end(JSON.stringify({
+                    challenge: payload.d.challenge
+                }))
+                return
+            }
             res.end()
+            return
         })
     } catch (error) {
         res.end(""+error)
