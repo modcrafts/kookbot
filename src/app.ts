@@ -1,10 +1,11 @@
-import { join } from "path";
 import AutoLoad, { AutoloadPluginOptions } from "@fastify/autoload";
-import { FastifyPluginAsync, FastifyServerOptions } from "fastify";
 import pino from "pino";
 import uWS, { HttpResponse } from "uWebSockets.js";
 import * as zlib from "zlib";
 import { Context } from "cordis";
+import { FastifyPluginAsync, FastifyServerOptions } from "fastify";
+import { join } from "path";
+import { webhook } from "./bot/webhook";
 //import { Data, IBaseResponse } from "./kook/types/base";
 //import { IBaseSystemExtra } from "./kook/types/system";
 
@@ -20,36 +21,8 @@ const app: FastifyPluginAsync<AppOptions> = async (
   fastify,
   opts,
 ): Promise<void> => {
-  const webhookPort = process.env.KOOK_WEBHOOK_PORT
-  // uWS 注册监听路由
-  uWS
-    .App()
-    .post("/webhook", async (res, req) => {
-      const payload/*: IBaseResponse*/ = await readJson(res);
-      const data/*: Data<IBaseSystemExtra>*/ = payload.d;
-
-      // 检查 verify_token 避免恶意请求
-      if ( data.verify_token !== process.env.KOOK_VERIFY_TOKEN ) {
-        res.writeStatus("403 FORBIDDEN").end();
-        return;
-      }
-      // 处理 Kook Challenge
-      if ( data.channel_type == "WEBHOOK_CHALLENGE" ) {
-        const body = { challenge: data.challenge };
-        res.writeStatus("200 OK").end(JSON.stringify(body));
-        return;
-      }
-
-      res.writeStatus("200 OK").end();
-      return;
-    })
-    .listen(8787, (token) => {
-      if (token) {
-        logger.info("Listening to port " + webhookPort);
-      } else {
-        logger.fatal("Failed to listen to port " + webhookPort);
-      }
-    });
+  
+  webhook()
 
   // Do not touch the following lines
 
